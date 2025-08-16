@@ -1,10 +1,8 @@
-import os, io, uuid, math, regex as re, numpy as np
+import os, uuid, regex as re
 from functools import lru_cache
-from typing import List, Tuple
 from pypdf import PdfReader
 import trafilatura
 from gtts import gTTS
-from pydub import AudioSegment
 from PIL import Image, ImageDraw, ImageFont
 from langdetect import detect
 import gradio as gr
@@ -28,7 +26,7 @@ def get_translator(model_name):
 def chunk_text(t, target_chars=2500):
     t=re.sub(r"\s+"," ",t).strip()
     if not t: return []
-    s=re.split(r"(?<=[\.\!\?])\s+", t)
+    s=re.split(r"(?<=[\.!\?])\s+", t)
     chunks=[]; cur=[]
     cur_len=0
     for sent in s:
@@ -56,7 +54,7 @@ def summarize_text(t):
 def easy_read(text):
     s=re.sub(r"\s+"," ",text).strip()
     if not s: return ""
-    sents=re.split(r"(?<=[\.\!\?])\s+", s)
+    sents=re.split(r"(?<=[\.!\?])\s+", s)
     sents=[x for x in sents if x]
     sents=sents[:8]
     bullets=["• "+x for x in sents]
@@ -256,4 +254,4 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     go.click(process, inputs=[file,url,raw_text,target_language,make_audio,make_card], outputs=[s_out,e_out,t_out,audio_out,card_out,note])
 
 if __name__=="__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(server_name="0.0.0.0", server_port=int(os.getenv("PORT","7860")))

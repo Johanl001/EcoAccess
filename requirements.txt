@@ -6,9 +6,9 @@ accelerate
 pypdf
 trafilatura
 gTTS
-pydub
 Pillow
 langdetect
 regex
-numpy
+fastapi
+uvicorn[standard]
 
