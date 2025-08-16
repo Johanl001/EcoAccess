@@ -11,5 +11,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your project files
 COPY . .
 
-# Command to run your FastAPI app with Uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+# Command to run the Gradio app
+CMD ["python", "app.py"]
