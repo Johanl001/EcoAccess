@@ -11,4 +11,5 @@ langdetect
 regex
 fastapi
 uvicorn[standard]
+lxml_html_clean
 
