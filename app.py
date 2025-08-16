@@ -74,6 +74,42 @@ LANG_TO_MODEL={
     "English":"__noop__"
 }
 
+# Models to translate FROM a language code TO English
+CODE_TO_EN_MODEL={
+    "hi":"Helsinki-NLP/opus-mt-hi-en",
+    "ta":"Helsinki-NLP/opus-mt-ta-en",
+    "mr":"Helsinki-NLP/opus-mt-mr-en",
+    "te":"Helsinki-NLP/opus-mt-te-en",
+    "bn":"Helsinki-NLP/opus-mt-bn-en",
+    "kn":"Helsinki-NLP/opus-mt-kn-en",
+    "gu":"Helsinki-NLP/opus-mt-gu-en",
+    "ml":"Helsinki-NLP/opus-mt-ml-en",
+}
+
+
+def translate_to_english(text, source_lang_code):
+    model_name=CODE_TO_EN_MODEL.get(source_lang_code)
+    if not model_name:
+        return text
+    tok, mdl=get_translator(model_name)
+    inputs=tok(text, return_tensors="pt", truncation=True, max_length=768)
+    if torch.cuda.is_available():
+        inputs={k:v.to("cuda") for k,v in inputs.items()}
+        mdl=mdl.to("cuda")
+    out=mdl.generate(**inputs, max_new_tokens=256, num_beams=4)
+    return tok.batch_decode(out, skip_special_tokens=True)[0]
+
+
+def translate_text_to_english(text, source_lang_code):
+    s=re.sub(r"\s+"," ",text).strip()
+    if not s:
+        return s
+    chunks=chunk_text(s, target_chars=1200)
+    outputs=[]
+    for c in chunks:
+        outputs.append(translate_to_english(c, source_lang_code))
+    return " ".join(outputs)
+
 def translate_en_to(text, target_lang):
     if target_lang=="English": return text
     model_name=LANG_TO_MODEL[target_lang]
@@ -157,9 +193,20 @@ def read_url(url):
     return extracted or ""
 
 def unify_input(file, url, raw_text):
-    if raw_text and raw_text.strip(): return raw_text
-    if url and url.strip(): return read_url(url)
-    if file is not None: return read_pdf(file.name)
+    if raw_text and raw_text.strip():
+        return raw_text
+    if url and url.strip():
+        return read_url(url)
+    if file is not None:
+        path=None
+        if isinstance(file, str):
+            path=file
+        elif isinstance(file, dict):
+            path=file.get("path") or file.get("name")
+        else:
+            path=getattr(file, "path", None) or getattr(file, "name", None)
+        if path:
+            return read_pdf(path)
     return ""
 
 def process(file, url, raw_text, target_language, make_audio, make_card):
@@ -167,9 +214,13 @@ def process(file, url, raw_text, target_language, make_audio, make_card):
     if not base.strip():
         return "","", "", None, None, "No content detected."
     lang=detect_lang(base)
+    base_en=base
     if lang!="en":
-        pass
-    s=summarize_text(base)
+        try:
+            base_en=translate_text_to_english(base, lang)
+        except Exception:
+            base_en=base
+    s=summarize_text(base_en)
     e=easy_read(s)
     t=translate_en_to(e if target_language!="English" else s, target_language)
     audio=None
@@ -205,4 +256,4 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     go.click(process, inputs=[file,url,raw_text,target_language,make_audio,make_card], outputs=[s_out,e_out,t_out,audio_out,card_out,note])
 
 if __name__=="__main__":
-    demo.launch(share=True)
+    demo.launch(server_name="0.0.0.0", server_port=7860)
